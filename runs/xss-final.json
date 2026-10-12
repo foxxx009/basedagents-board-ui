@@ -1,0 +1,35 @@
+{
+  "browser": "msedge.exe",
+  "fixtures": 12,
+  "board": {
+    "firedGlobals": [],
+    "injected": {
+      "scripts": 0,
+      "imgs": 0,
+      "iframes": 0,
+      "svgs": 0,
+      "objects": 0,
+      "styles": 0
+    },
+    "attrInjection": 0,
+    "jsHrefs": 0,
+    "titleTextSample": "<img src=x onerror=\"window.__XSS_IMG__=1\">",
+    "descTextSample": "<img src=x onerror=\"window.__XSS_IMG__=1\"> plain <b>bold</b>",
+    "taskCount": 12
+  },
+  "drawer": {
+    "firedGlobals": [],
+    "open": true,
+    "scripts": 0,
+    "imgs": 0,
+    "iframes": 0,
+    "svgs": 0,
+    "jsHrefs": 0,
+    "descIsText": true,
+    "descSample": "<img src=x onerror=\"window.__XSS_IMG__=1\"> plain <b>bold</b> text."
+  },
+  "off_origin_requests": [],
+  "console_errors": [],
+  "verdict": "PASS",
+  "problems": []
+}

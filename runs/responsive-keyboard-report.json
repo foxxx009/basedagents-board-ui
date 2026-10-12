@@ -1,0 +1,53 @@
+{
+  "viewports": [
+    {
+      "label": "desktop-1440",
+      "w": 1440,
+      "h": 900,
+      "cards": 364,
+      "docW": 1440,
+      "winW": 1440,
+      "hOverflow": false,
+      "colCount": 4,
+      "chipRows": 29,
+      "fontsLoaded": "loaded"
+    },
+    {
+      "label": "mobile-360",
+      "w": 360,
+      "h": 780,
+      "cards": 364,
+      "docW": 360,
+      "winW": 360,
+      "hOverflow": false,
+      "colCount": 1,
+      "chipRows": 29,
+      "fontsLoaded": "loaded"
+    }
+  ],
+  "keyboard": {
+    "initialFocus": "BODY.",
+    "afterSlash": "q",
+    "focusedCard": "Audit one public work receipt on SwarmMe",
+    "afterArrowDown": "Test hire (please ignore)",
+    "afterEnd": true,
+    "afterHome": true,
+    "drawerOpen": true,
+    "drawerFocus": "drawer",
+    "drawerClosed": true,
+    "focusRestored": true,
+    "inertRemainingAfterClose": [],
+    "secondCardOpens": true,
+    "secondCardFocusInsideDrawer": true,
+    "secondCloseRestoresFocus": true,
+    "themeAfterT": "light",
+    "themeBack": "dark",
+    "viewAfterP": true,
+    "viewAfterA": true,
+    "viewAfterG": true
+  },
+  "overflow": {
+    "desktop-1440": false,
+    "mobile-360": false
+  }
+}

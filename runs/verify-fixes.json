@@ -1,0 +1,229 @@
+{
+  "generated_at": "2026-10-12T18:01:27.655Z",
+  "total": 37,
+  "failed": 0,
+  "results": [
+    {
+      "id": "1a",
+      "claim": "settled walk agrees with API stats",
+      "pass": true,
+      "detail": "walked 71 vs api 71; 39.2 vs 39.2 USDC"
+    },
+    {
+      "id": "1b",
+      "claim": "every status page walked to exhaustion",
+      "pass": true,
+      "detail": "sum(by_status)=364 vs stats.tasks=364; by_status={\"open\":56,\"claimed\":26,\"submitted\":12,\"verified\":168,\"expired\":8,\"cancelled\":94}"
+    },
+    {
+      "id": "1c",
+      "claim": "task count rose off the single-page figure",
+      "pass": true,
+      "detail": "tasks=364 (first delivery captured 44)"
+    },
+    {
+      "id": "1d",
+      "claim": "settled volume corrected",
+      "pass": true,
+      "detail": "settled_volume_usdc=39.2 (first delivery showed 5.30)"
+    },
+    {
+      "id": "2a",
+      "claim": "explorer link reads the bounty network, not t.payment.network",
+      "pass": true,
+      "detail": "drawer chain branch now falls back to bounty.network"
+    },
+    {
+      "id": "2b",
+      "claim": "unsettled BOUNTY tasks are not labelled free",
+      "pass": true,
+      "detail": "separate pills for unsettled-bounty vs genuinely free"
+    },
+    {
+      "id": "2c",
+      "claim": "receipts are requested for EVERY task in the census, not just delivered ones",
+      "pass": true,
+      "detail": "asked 364 of 364 tasks; 284 carry receipts"
+    },
+    {
+      "id": "2c2",
+      "claim": "the wider net finds receipts outside submitted/verified (the old filter hid them)",
+      "pass": true,
+      "detail": "105 receipt-bearing tasks sit outside submitted/verified"
+    },
+    {
+      "id": "2d",
+      "claim": "receipt records carry id, chain_sequence, entry hash and signature",
+      "pass": true,
+      "detail": "rcpt_7UL4trQNwRFAGjQyoodbw seq=789 sig=cMjDJCsg06PC…"
+    },
+    {
+      "id": "2e",
+      "claim": "receipts are rendered in the drawer",
+      "pass": true,
+      "detail": "#d-receipts container present and populated from receipts.json"
+    },
+    {
+      "id": "2f",
+      "claim": "receipt heading is a sibling of the list, not a child of <ul>",
+      "pass": true,
+      "detail": "heading lives in #d-receipts-h; the <ul> now contains <li> only"
+    },
+    {
+      "id": "2g",
+      "claim": "entry hash and signature are printed in FULL (no slice)",
+      "pass": true,
+      "detail": "both printed whole; .receipt uses overflow-wrap:anywhere so they wrap, not clip"
+    },
+    {
+      "id": "3a",
+      "claim": "agents grid uses minmax(0,1fr) and items can shrink",
+      "pass": true,
+      "detail": "minmax(0,1fr) + min-width:0 + overflow-wrap:anywhere"
+    },
+    {
+      "id": "4a",
+      "claim": "all palette pairs pass WCAG AA in BOTH themes",
+      "pass": true,
+      "detail": "37 pairs pass"
+    },
+    {
+      "id": "4b",
+      "claim": "light-theme pill colours were darkened (fg-3, acc)",
+      "pass": true,
+      "detail": "previously fg-3 4.31:1 and acc 3.43:1 against card-2"
+    },
+    {
+      "id": "4c",
+      "claim": "text-on-acc-fill is a token, not the #04211d literal that failed",
+      "pass": true,
+      "detail": "dark #04211d on #5eead4 = 11.44; light #ffffff on #0a6e66 = 6.11; 3 usages"
+    },
+    {
+      "id": "4d",
+      "claim": "the tinted bounty/settled pills are measured, not skipped",
+      "pass": true,
+      "detail": "contrast.mjs blends color-mix(in srgb, ok 16%|20%, transparent) over card-2: 5.69 and 5.33 light"
+    },
+    {
+      "id": "4e",
+      "claim": "contrast.mjs covers more pairs than the 27 it used to claim",
+      "pass": true,
+      "detail": "37 PASS lines across both themes (was 27)"
+    },
+    {
+      "id": "5a",
+      "claim": "drawer applies inert to the background and restores it",
+      "pass": true,
+      "detail": "inert set on open, restored on close from the recorded prior state"
+    },
+    {
+      "id": "5b",
+      "claim": "Tab is wrapped at the drawer edges",
+      "pass": true,
+      "detail": "trapTab() called from the keydown guard while the modal is open"
+    },
+    {
+      "id": "5c",
+      "claim": "single-key shortcuts do not fire behind the modal",
+      "pass": true,
+      "detail": "keyboard handler returns early for non-Escape/Tab keys while open"
+    },
+    {
+      "id": "5d",
+      "claim": "prior inert state is recorded for EVERY background node, not only id'd ones",
+      "pass": true,
+      "detail": "the `if (node.id)` guard that stranded header/.wrap/footer/skip-link is gone"
+    },
+    {
+      "id": "6.tools/xss-test.mjs",
+      "claim": "ships tools/xss-test.mjs",
+      "pass": true,
+      "detail": "19040 bytes"
+    },
+    {
+      "id": "6.tools/serve.mjs",
+      "claim": "ships tools/serve.mjs",
+      "pass": true,
+      "detail": "933 bytes"
+    },
+    {
+      "id": "6.tools/contrast.mjs",
+      "claim": "ships tools/contrast.mjs",
+      "pass": true,
+      "detail": "6315 bytes"
+    },
+    {
+      "id": "6.tools/verify-fixes.mjs",
+      "claim": "ships tools/verify-fixes.mjs",
+      "pass": true,
+      "detail": "14600 bytes"
+    },
+    {
+      "id": "9a",
+      "claim": "every task carries a full-text haystack in the lazy chunks",
+      "pass": true,
+      "detail": "364/364 tasks have search_text across details-*.json"
+    },
+    {
+      "id": "9b",
+      "claim": "haystack is built from the full description, not the 260-char summary",
+      "pass": true,
+      "detail": "search_text=2186 chars vs description=1790"
+    },
+    {
+      "id": "9c",
+      "claim": "search_text is NOT inlined in the render-blocking index (perf fix)",
+      "pass": true,
+      "detail": "index stays lean; full text loads on first search"
+    },
+    {
+      "id": "9d",
+      "claim": "app lazily loads chunks and re-renders when they arrive",
+      "pass": true,
+      "detail": "full-text resolved from details-*.json on first query"
+    },
+    {
+      "id": "9e",
+      "claim": "full-text hits OR with the metadata match instead of replacing it",
+      "pass": true,
+      "detail": "a row matching either haystack is kept; only a loaded-chunk miss falls through"
+    },
+    {
+      "id": "6a",
+      "claim": "unique agents collected equals the API pagination total",
+      "pass": true,
+      "detail": "unique=718 vs api_pagination_total=718 (sort=registered_at)"
+    },
+    {
+      "id": "6b",
+      "claim": "the agent walk requests a stable sort order",
+      "pass": true,
+      "detail": "an unsorted page walk double-counts and misses; registered_at makes it exhaustive"
+    },
+    {
+      "id": "n4",
+      "claim": "cancelled tasks are in the census instead of being dropped silently",
+      "pass": true,
+      "detail": "by_status={\"open\":56,\"claimed\":26,\"submitted\":12,\"verified\":168,\"expired\":8,\"cancelled\":94}"
+    },
+    {
+      "id": "n1",
+      "claim": "build checkpoint no longer ships inside dist/",
+      "pass": true,
+      "detail": "CKPT moved to tools/"
+    },
+    {
+      "id": "n2",
+      "claim": "Oldest and Age order by DIFFERENT keys (they used to be identical)",
+      "pass": true,
+      "detail": "old = oldest created first; age = stalest by last recorded event (lastEventMs)"
+    },
+    {
+      "id": "n3",
+      "claim": "loadDetails uses its computed target chunk",
+      "pass": true,
+      "detail": "target chunk read first, hash hit-rate recorded"
+    }
+  ]
+}

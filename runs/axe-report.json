@@ -1,0 +1,161 @@
+{
+  "generated_at": "2026-10-12T17:48:52.687Z",
+  "axe_source": "C:/Users/fitze/.workbuddy/binaries/node/workspace/node_modules/axe-core/axe.min.js",
+  "base": "http://127.0.0.1:8123/",
+  "runs": [
+    {
+      "theme": "dark",
+      "state": "board",
+      "label": "board (task list)",
+      "axe": "axe",
+      "violation_count": 0,
+      "violations": [],
+      "incomplete": [
+        {
+          "id": "color-contrast",
+          "nodes": 1
+        },
+        {
+          "id": "label-content-name-mismatch",
+          "nodes": 1
+        }
+      ],
+      "passed_rules": 27
+    },
+    {
+      "theme": "dark",
+      "state": "payments",
+      "label": "payments table",
+      "axe": "axe",
+      "violation_count": 0,
+      "violations": [],
+      "incomplete": [
+        {
+          "id": "color-contrast",
+          "nodes": 1
+        },
+        {
+          "id": "label-content-name-mismatch",
+          "nodes": 1
+        }
+      ],
+      "passed_rules": 26
+    },
+    {
+      "theme": "dark",
+      "state": "agents",
+      "label": "agents directory",
+      "axe": "axe",
+      "violation_count": 0,
+      "violations": [],
+      "incomplete": [
+        {
+          "id": "color-contrast",
+          "nodes": 1
+        },
+        {
+          "id": "label-content-name-mismatch",
+          "nodes": 1
+        }
+      ],
+      "passed_rules": 26
+    },
+    {
+      "theme": "dark",
+      "state": "drawer",
+      "label": "open drawer",
+      "axe": "axe",
+      "violation_count": 0,
+      "violations": [],
+      "incomplete": [
+        {
+          "id": "color-contrast",
+          "nodes": 1
+        },
+        {
+          "id": "label-content-name-mismatch",
+          "nodes": 1
+        }
+      ],
+      "passed_rules": 26
+    },
+    {
+      "theme": "light",
+      "state": "board",
+      "label": "board (task list)",
+      "axe": "axe",
+      "violation_count": 0,
+      "violations": [],
+      "incomplete": [
+        {
+          "id": "color-contrast",
+          "nodes": 1
+        },
+        {
+          "id": "label-content-name-mismatch",
+          "nodes": 1
+        }
+      ],
+      "passed_rules": 27
+    },
+    {
+      "theme": "light",
+      "state": "payments",
+      "label": "payments table",
+      "axe": "axe",
+      "violation_count": 0,
+      "violations": [],
+      "incomplete": [
+        {
+          "id": "color-contrast",
+          "nodes": 1
+        },
+        {
+          "id": "label-content-name-mismatch",
+          "nodes": 1
+        }
+      ],
+      "passed_rules": 26
+    },
+    {
+      "theme": "light",
+      "state": "agents",
+      "label": "agents directory",
+      "axe": "axe",
+      "violation_count": 0,
+      "violations": [],
+      "incomplete": [
+        {
+          "id": "color-contrast",
+          "nodes": 1
+        },
+        {
+          "id": "label-content-name-mismatch",
+          "nodes": 1
+        }
+      ],
+      "passed_rules": 26
+    },
+    {
+      "theme": "light",
+      "state": "drawer",
+      "label": "open drawer",
+      "axe": "axe",
+      "violation_count": 0,
+      "violations": [],
+      "incomplete": [
+        {
+          "id": "color-contrast",
+          "nodes": 1
+        },
+        {
+          "id": "label-content-name-mismatch",
+          "nodes": 1
+        }
+      ],
+      "passed_rules": 26
+    }
+  ],
+  "total_violations": 0,
+  "verdict": "0 axe violations across board, payments, agents and open drawer in both themes"
+}

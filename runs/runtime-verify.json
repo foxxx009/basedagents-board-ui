@@ -1,0 +1,48 @@
+{
+  "generated_at": "2026-10-12T17:54:24.694Z",
+  "base": "http://127.0.0.1:8099/",
+  "checks": [
+    {
+      "id": "R1",
+      "claim": "agents view does not overflow at 360px",
+      "pass": true,
+      "detail": "scrollWidth=360 clientWidth=360 widestChildRight=327 rows=718 (review saw 413 vs 360)"
+    },
+    {
+      "id": "R2",
+      "claim": "drawer renders the signed receipt chain for the receipt-bearing task",
+      "pass": true,
+      "detail": "opened=task_ALUeByf5V1wTNUSikiOl2 crumbs=\"task_ALUeByf5V1wTNUSikiOl2 · data\" li=1 fullHash=true fullSig=true empty=false text=\"rcpt_7UL4trQNwRFAGjQyoodbwcompleted 2026-10-03T22:58:07.214Z · chain seq 789entry c5c269ae0d490b12ca8de2a7a3bdb11304abe4d82725cf090641cdaf492bf41bsig cMjDJCsg06PCP8IkieE5cjaee2WHepHaOSUi+TaNfkkdkCeAdfu7F92DkEyvU2d8txjm54\""
+    },
+    {
+      "id": "R3",
+      "claim": "background is inert while the modal is open",
+      "pass": true,
+      "detail": "all non-drawer body children inert = true"
+    },
+    {
+      "id": "R4",
+      "claim": "focus moved into the drawer",
+      "pass": true,
+      "detail": "activeElement inside drawer = true"
+    },
+    {
+      "id": "R5",
+      "claim": "Tab wraps at the drawer edge instead of escaping",
+      "pass": true,
+      "detail": "focusables=3 last=\"creator profile JSON\" -> next=\"✕\" inside=true"
+    },
+    {
+      "id": "R6",
+      "claim": "a bounty-but-unsettled task is NOT labelled \"free task\"",
+      "pass": true,
+      "detail": "bounty=1.00 USDC chain=\"bounty 1.00 USDC — not settled yetview raw JSON on api.basedagents.ai\""
+    },
+    {
+      "id": "R7",
+      "claim": "search matches text found only in the full description",
+      "pass": true,
+      "detail": "token=\"containing\" (absent from every title+summary) -> 19 rows; 19 of 364 tasks · 6 paid · 13 free"
+    }
+  ]
+}
