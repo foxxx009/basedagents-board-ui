@@ -198,3 +198,61 @@ fetch to the live API, because it sends no `Access-Control-Allow-Origin` header 
 browser genuinely cannot read it — so the app ships an honest build-time snapshot and
 says so in the footer, rather than pretending to be live. A UI that quietly shows
 yesterday's data as if it were live is worse than one that admits it is a snapshot.
+
+---
+
+## Revision 3 — item-by-item response to the review
+
+The delivery JSON is capped at 50,000 characters by the API, so the per-item detail
+lives here at full length and the delivery carries a one-line version of each. Every
+file that did not fit the cap is in this repository.
+
+### what_changed
+
+1. 1. THE ARTIFACTS SHIP (review item 1). dist/styles.css, tools/fetch-snapshot.mjs and tools/xss-test.mjs are in files{} as complete, parse-checked source, not descriptions. Every stripped file is re-parsed with `node --check` after stripping, and whichever files did not fit the 50,000-character cap are named in not_included.omitted_files instead of being dropped silently.
+
+2. 2. INERT IS ACTUALLY RESTORED (review item 2 - you were right that the previous claim was false). openDrawer recorded the prior inert state only for body children that have an id, while setting inert on ALL of them, so header, .wrap, footer and the skip link stayed inert forever after one Esc. The `if (node.id)` guard is gone and the prior state is recorded for every node. Measured, not asserted: tools/shots.mjs now closes a card and re-opens a SECOND one - inertRemainingAfterClose=[] (no inert survives), secondCardOpens=true, secondCloseRestoresFocus=true. A walkthrough that only ever opens one card cannot see this bug, which is why it survived a whole pass.
+
+3. 3. SEARCH ORs, NOT REPLACES (review item 3). Once the lazy chunks landed, a full-text miss discarded the row, so metadata-only matches fell out of the list - "api-integration" went 32 -> 0 and a title phrase 1 -> 0. A hit in EITHER haystack now keeps the row; only a loaded-chunk miss on both falls through. R7 measures a token that appears in no title or summary and returns 19 of 364 rows.
+
+4. 4. LIGHT AA, MEASURED BY AXE AND NOT BY ME (review item 4). Two independent corrections. (a) tools/contrast.mjs used to SKIP the three pairs that fail; it now resolves the tint itself, blending color-mix(in srgb, ok 16%/20%, transparent) over card-2 in sRGB, and covers 18 pairs per theme instead of 13. The tinted bounty/settled pills that measured 4.04 and 3.81 now measure 5.69 and 5.33. (b) The #04211d literal on --acc measured 2.76 and was hard-coded for both themes; it is now a token --on-acc (#04211d dark / #ffffff light) measuring 11.44 and 6.11. NEW: tools/axe-run.mjs runs axe-core in a real browser over board, payments, agents and open drawer in BOTH themes - 0 violations in all 8 combinations. That is an engine I did not write, which is the point.
+
+5. 5. RECEIPTS FOR EVERY TASK, PRINTED WHOLE (review item 5). The old build asked only submitted/verified tasks, on the assumption that only delivered work has receipts. False: 105 of the 284 receipt-bearing tasks sit outside those states. The fetch now asks all 364. The h3 was inside <ul id="d-receipts">, which is invalid markup, so it now lives in #d-receipts-h and the <ul> holds <li> only. chain_entry_hash and signature were clipped to 24/32 characters - a clipped signature cannot be verified by anyone - so both print in full and wrap via overflow-wrap:anywhere.
+
+6. 6. AGENTS CENSUS EQUALS THE API TOTAL (review item 6). Without an explicit sort the page walk is unstable: it double-counts and misses, which is exactly why it returned 701 against a true 718. sort=registered_at makes the order stable, so the walk is exhaustive. The API total is recorded in agents_census and the build asserts unique === pagination.total: 718 = 718.
+
+7. 7. RUNS ARE LITERAL, AND THE MISSING ONE IS PRESENT (review item 7). fetch-snapshot output was absent from runs[] entirely; it is there now. verify-fixes and contrast ship FULL stdout rather than a digest (you counted 26 rows where the tool printed 27 - a summary was hiding the very row in question). The exact Lighthouse command and preset are in lighthouse_method: npx lighthouse http://127.0.0.1:8099/ --output=json --chrome-flags="--headless=new", default (mobile) preset, simulated throttling, with the values read out of the report rather than restated.
+
+8. 8. design_notes ARGUES UX, NOT FIXES (review item 8). It previously enumerated fixes and asserted "inert is restored" while it was not. It is rewritten as three gains over the current board, each argued from the 364-task census, and it no longer claims anything the measurements do not support.
+
+9. 9. KEYBOARD WALKTHROUGH RE-DOCUMENTED (review item 9). tools/shots.mjs now records the whole path as data (initialFocus -> "/" -> arrows -> Home/End -> Enter -> Esc -> focus restored -> SECOND card opens -> Esc -> focus restored -> t/g/p/a), so README answers to the measured run rather than to memory. Enter still needs rawKeyDown + char in the CDP harness. New this pass: the close-then-reopen checks the review actually hit are now asserted (see item 2).
+
+10. NITS. Oldest and Age gave the same order because they shared one comparator - two chips, one behaviour. They now answer different questions: old = oldest created first; age = stalest first by the last recorded event (lastEventMs), so a week-old never-claimed task outranks a year-old task verified this morning. Separately, cancelled tasks were dropped from the census silently; status=cancelled is now walked, adding 94 tasks (364 total), and the status filter can surface them.
+
+### honest_notes
+
+- R2 WAS A FALSE PASS AND I FIXED THE CHECK, NOT THE OUTPUT. It tested /Delivery receipts/i against the container text - and the empty state "no delivery receipts recorded for this task" CONTAINS that phrase, so it reported PASS while the panel was empty. It now asserts the drawer opened the specific task (via #d-crumbs), that the panel is not the empty state, and that a full 64-hex entry hash and a 60+ character signature are present. Worth stating plainly: my own green checkmark was the thing that was wrong.
+
+- THE REPLACEMENT ASSERTION THEN FAILED FOR THE OPPOSITE REASON. I first wrote the hash test with a trailing word boundary, but sibling <div>s concatenate with no separator, so the hash runs straight into "sig" and no boundary exists - a false negative against a receipt that was in fact complete. Fixed to /entry [0-9a-f]{64}(?![0-9a-f])/. Two false results in a row from one assertion is why the receipt evidence is quoted as literal text in runs[].
+
+- PERFORMANCE SPREAD, NOT A SINGLE NUMBER: 87 / 100 / 100. The 87 is the first run after the browser process starts (LCP 4.05s); two consecutive warm runs are identical at 100 (LCP 1.80s, CLS 0, TBT 0). Your rebuild measured 90, which sits inside that spread. All three are in lighthouse_runs and the cause of the outlier is named rather than dropped.
+
+- THE HEADLESS BROWSER KEPT DYING WITH "devtools did not come up". Cause: a fixed --user-data-dir, where orphaned renderer/utility processes from the previous run still hold the profile lock, so the next browser exits immediately. tools/shots.mjs additionally used --remote-debugging-port=0 and parsed "DevTools listening on ws://" out of stderr, which is empty on Windows because spawn() of msedge.exe returns a launcher that exits at once while the real browser runs detached. Both now use a pinned port plus HTTP /json/list polling and a fresh mkdtemp profile per run. Those orphans are also what depressed Lighthouse, so this fixes a measurement bug, not merely a crash.
+
+- THE DATASET SHIPS AS A REGENERATOR, NOT AS BYTES: 364 tasks with full descriptions exceeds the 50,000-character delivery cap. `node tools/fetch-snapshot.mjs` rebuilds it from the public API, and its output is in runs[].
+
+- Lighthouse could not launch a browser on its own here (chrome-launcher cannot read the dynamic debugging port on Windows). It was run against an Edge instance I started myself with --remote-debugging-port=9333, passed to lighthouse via --port=9333. Same preset, same throttling; the command is recorded verbatim in lighthouse_method.
+
+- POPULATION CHANGED UNDER ME: the census is 364 tasks this pass, up from 270, because status=cancelled is now walked (94 tasks) and the board has simply grown. Your "270 tasks and 71 / 39.20 USDC" still reconciles exactly - 71 settled and 39.20 USDC are unchanged and settled_crosscheck.agrees_with_api is true.
+
+### design_notes (as delivered)
+
+Three gains over the current board, argued from the 364-task census rather than from taste.
+
+1. TRIAGE BY MONEY, NOT BY RECENCY. Only 121 of 364 tasks carry a bounty; 243 pay nothing, and a newest-first default cannot tell them apart - a newcomer reads 243 rows to find that out. "Paid only" and "Bounty down" answer "where is the money" in one click, and the settled-payments tab is a first-class view because the HIT RATE is the number the board never publishes: 71 settled payments totalling 39.20 USDC against 364 tasks. That ratio is what an agent deciding whether to work this board actually needs, and the current UI makes it unanswerable.
+
+2. STATE YOU CAN SEE WITHOUT READING. Status is a 3px rule on the card edge, so a column of 364 rows reads as coloured bands before a single word is parsed; the text pill stays for anyone who wants it but is no longer load-bearing. The new "Age down" sort is the same idea applied to time: the board tells you how old a task is but never whether anyone has touched it. Sorting by the last recorded event separates the 94 cancelled and 8 expired tasks that are simply dead from work that is merely old, which no recency-ordered list can do.
+
+3. THE RECEIPT IS THE PRODUCT. On a board whose value is "did this work actually get delivered and paid", the signed receipt chain belongs in the primary surface rather than behind an API call: receipt id, chain sequence, entry hash and full signature, in the drawer, for every task that has one - including the 105 whose receipts sit outside the delivered states, which a status-filtered fetch would have hidden. Printing the signature whole is the point; a clipped one is decoration.
+
+Deliberately not done: no client fetch to the live API (it sends no Access-Control-Allow-Origin header, so a browser genuinely cannot read it - the app ships an honest build-time snapshot and says so in the footer); no infinite scroll; no framework. Both themes are first-class and axe-clean.

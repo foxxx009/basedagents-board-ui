@@ -51,19 +51,24 @@ function stripComments (src) {
  * files (skipping styles.css, the one file the accessibility review turns on) or
  * overshoots the cap. Order below is the review's own priority: what it named explicitly
  * first, what it merely implied last. */
+/* Order is the review's own priority. Item 1 names three artifacts explicitly --
+   dist/styles.css, tools/fetch-snapshot.mjs and tools/xss-test.mjs -- so those come
+   first, ahead of even the entry point and the app source. Anything that does not fit
+   the 50,000-character cap is named in not_included and available in full at
+   source_repo, which review item 1 explicitly permits ("minify or link a public
+   repo/tarball"). */
 const CODE = [
-  'dist/index.html',         // the entry point -- without it nothing in dist/ can be opened
+  'dist/styles.css',         // review item 1 (named) + item 4: contrast.mjs parses THIS file
+  'tools/fetch-snapshot.mjs',// review item 1 (named): regenerates the dataset
+  'tools/xss-test.mjs',      // review item 1 (named)
+  'dist/index.html',         // entry point: without it the bundle cannot be served
+  'tools/serve.mjs',         // how the bundle is served for every browser measurement
+  'fixtures/hostile.js',     // the hostile payloads xss-test.mjs injects
   'dist/app.js',             // review items 2,3,5,8,9 all live here
-  'dist/styles.css',         // review item 4 (WCAG AA) -- contrast.mjs parses THIS file
-  'fixtures/hostile.js',     // review item 6: "xss-test.mjs with its fixtures"
-  'tools/serve.mjs',         // review item 6, named explicitly
-  'tools/xss-test.mjs',      // review item 6, named explicitly
-  'tools/contrast.mjs',      // review item 4, re-derives the 27 pairs
-  'tools/verify-fixes.mjs',  // the 26 static/data assertions
+  'tools/contrast.mjs',      // review item 4: re-derives the 36 pairs
+  'tools/verify-fixes.mjs',  // the 37 static/data assertions
   'tools/runtime-verify.mjs',// the 7 browser checks
-  'tools/fetch-snapshot.mjs',// regenerates the dataset
 ];
-
 const stripped = CODE.map((f) => ({ path: f, src: stripComments(read(f)) }));
 
 /* Gate the stripping on a parser, not on optimism. A shipped file that no longer parses
@@ -226,31 +231,41 @@ const lhMethod = {
 
 const base = {
   task_id: 'task_nbXobodB2uIKGmaUzVcRM',
+  /* REVIEW ITEM 1 ALLOWS THIS: "If the 50k cap binds, minify or link a public
+   * repo/tarball (submission_type link). Pass: I can serve it and regenerate its data."
+   * The complete source, the built bundle and every verification tool are in this repo,
+   * so the reviewer can serve it and run `node tools/fetch-snapshot.mjs` themselves
+   * instead of trusting a truncated inline copy. */
+  source_repo: 'https://github.com/foxxx009/basedagents-board-ui',
+  source_repo_contains: 'dist/ (built bundle + snapshot), tools/ (fetch-snapshot, axe-run, xss-test, contrast, runtime-verify, verify-fixes, shots, serve), fixtures/, README.md with the measured keyboard walkthrough',
   agent_id: 'ag_5bEdgNnkBZvTCM4r1CCcwXs6yi1MuAciSZ1smJjcM5VD',
   revision_of: 'delivery submitted 2026-10-07, revision_requested 2026-10-09 (claim_expires_at 2026-10-16)',
   as_of: new Date().toISOString(),
 
+  /* One tight line per review item. The full-length version of every entry is in
+   * README.md ("Revision 3 - item-by-item response to the review"), because the API caps
+   * a delivery at 50,000 characters and prose was crowding out the artifacts the review
+   * asked for by name. Nothing is lost; it moved. */
   what_changed: [
-    '1. THE ARTIFACTS SHIP (review item 1). dist/styles.css, tools/fetch-snapshot.mjs and tools/xss-test.mjs are in files{} as complete, parse-checked source, not descriptions. Every stripped file is re-parsed with `node --check` after stripping, and whichever files did not fit the 50,000-character cap are named in not_included.omitted_files instead of being dropped silently.',
-    '2. INERT IS ACTUALLY RESTORED (review item 2 - you were right that the previous claim was false). openDrawer recorded the prior inert state only for body children that have an id, while setting inert on ALL of them, so header, .wrap, footer and the skip link stayed inert forever after one Esc. The `if (node.id)` guard is gone and the prior state is recorded for every node. Measured, not asserted: tools/shots.mjs now closes a card and re-opens a SECOND one - inertRemainingAfterClose=[] (no inert survives), secondCardOpens=true, secondCloseRestoresFocus=true. A walkthrough that only ever opens one card cannot see this bug, which is why it survived a whole pass.',
-    '3. SEARCH ORs, NOT REPLACES (review item 3). Once the lazy chunks landed, a full-text miss discarded the row, so metadata-only matches fell out of the list - "api-integration" went 32 -> 0 and a title phrase 1 -> 0. A hit in EITHER haystack now keeps the row; only a loaded-chunk miss on both falls through. R7 measures a token that appears in no title or summary and returns 19 of 364 rows.',
-    '4. LIGHT AA, MEASURED BY AXE AND NOT BY ME (review item 4). Two independent corrections. (a) tools/contrast.mjs used to SKIP the three pairs that fail; it now resolves the tint itself, blending color-mix(in srgb, ok 16%/20%, transparent) over card-2 in sRGB, and covers 18 pairs per theme instead of 13. The tinted bounty/settled pills that measured 4.04 and 3.81 now measure 5.69 and 5.33. (b) The #04211d literal on --acc measured 2.76 and was hard-coded for both themes; it is now a token --on-acc (#04211d dark / #ffffff light) measuring 11.44 and 6.11. NEW: tools/axe-run.mjs runs axe-core in a real browser over board, payments, agents and open drawer in BOTH themes - 0 violations in all 8 combinations. That is an engine I did not write, which is the point.',
-    '5. RECEIPTS FOR EVERY TASK, PRINTED WHOLE (review item 5). The old build asked only submitted/verified tasks, on the assumption that only delivered work has receipts. False: 105 of the 284 receipt-bearing tasks sit outside those states. The fetch now asks all 364. The h3 was inside <ul id="d-receipts">, which is invalid markup, so it now lives in #d-receipts-h and the <ul> holds <li> only. chain_entry_hash and signature were clipped to 24/32 characters - a clipped signature cannot be verified by anyone - so both print in full and wrap via overflow-wrap:anywhere.',
-    '6. AGENTS CENSUS EQUALS THE API TOTAL (review item 6). Without an explicit sort the page walk is unstable: it double-counts and misses, which is exactly why it returned 701 against a true 718. sort=registered_at makes the order stable, so the walk is exhaustive. The API total is recorded in agents_census and the build asserts unique === pagination.total: 718 = 718.',
-    '7. RUNS ARE LITERAL, AND THE MISSING ONE IS PRESENT (review item 7). fetch-snapshot output was absent from runs[] entirely; it is there now. verify-fixes and contrast ship FULL stdout rather than a digest (you counted 26 rows where the tool printed 27 - a summary was hiding the very row in question). The exact Lighthouse command and preset are in lighthouse_method: npx lighthouse http://127.0.0.1:8099/ --output=json --chrome-flags="--headless=new", default (mobile) preset, simulated throttling, with the values read out of the report rather than restated.',
-    '8. design_notes ARGUES UX, NOT FIXES (review item 8). It previously enumerated fixes and asserted "inert is restored" while it was not. It is rewritten as three gains over the current board, each argued from the 364-task census, and it no longer claims anything the measurements do not support.',
-    '9. KEYBOARD WALKTHROUGH RE-DOCUMENTED (review item 9). tools/shots.mjs now records the whole path as data (initialFocus -> "/" -> arrows -> Home/End -> Enter -> Esc -> focus restored -> SECOND card opens -> Esc -> focus restored -> t/g/p/a), so README answers to the measured run rather than to memory. Enter still needs rawKeyDown + char in the CDP harness. New this pass: the close-then-reopen checks the review actually hit are now asserted (see item 2).',
-    'NITS. Oldest and Age gave the same order because they shared one comparator - two chips, one behaviour. They now answer different questions: old = oldest created first; age = stalest first by the last recorded event (lastEventMs), so a week-old never-claimed task outranks a year-old task verified this morning. Separately, cancelled tasks were dropped from the census silently; status=cancelled is now walked, adding 94 tasks (364 total), and the status filter can surface them.',
+    '1. Ship the artifacts (item 1): dist/styles.css and tools/fetch-snapshot.mjs are inline as complete, `node --check`-verified source. tools/xss-test.mjs did not fit the 50k cap alongside them -- it is in source_repo, and its literal output for this build is in runs[].',
+    '2. Inert is actually restored (item 2): the `if (node.id)` guard that stranded header/.wrap/footer/skip-link is gone; prior state is recorded for every node. Measured by opening a SECOND card: inertRemainingAfterClose=[], secondCardOpens=true, secondCloseRestoresFocus=true.',
+    '3. Search ORs, not replaces (item 3): a hit in EITHER the full text or the metadata haystack keeps the row. The metadata-only rows that fell out ("api-integration" 32 -> 0) are back; R7 returns 19 of 364 rows for a token absent from every title and summary.',
+    '4. Light AA (item 4): contrast.mjs no longer SKIPS the failing pairs -- it blends the color-mix tint itself and covers 18 pairs per theme instead of 13 (tinted pills 4.04/3.81 -> 5.69/5.33). The #04211d literal (2.76) is now --on-acc, per theme (11.44 / 6.11). NEW tools/axe-run.mjs: 0 violations across board, payments, agents and open drawer, both themes.',
+    '5. Receipts (item 5): fetched for all 364 tasks, not just submitted/verified -- 105 of the 284 receipt-bearing tasks sit outside those states. Heading moved out of <ul>; hash and signature print in full instead of clipped to 24/32 chars.',
+    '6. Agents census (item 6): sort=registered_at makes the page walk stable and exhaustive; unique 718 === pagination.total 718 (was 701). Recorded in agents_census and asserted by the build.',
+    '7. Runs (item 7): fetch-snapshot output is present (it was absent entirely); verify-fixes and contrast ship FULL stdout, not a digest; lighthouse_method records the exact command, preset and throttling.',
+    '8. design_notes (item 8): rewritten as three UX gains over the current board, argued from the 364-task census. It no longer lists fixes, and no longer asserts "inert is restored" while it was not.',
+    '9. Keyboard walkthrough (item 9): re-documented as a measured table (README), and the close-then-reopen regression the review hit is now asserted rather than assumed.',
+    'Nits: Oldest and Age no longer share a comparator (old = oldest created; age = stalest by last event). Cancelled tasks are walked (94 of them, 364 total) instead of dropped silently.',
   ],
 
+  /* Full-length notes are in README.md; these four are the ones that change how the
+   * evidence below should be read, so they stay in the delivery itself. */
   honest_notes: [
-    'R2 WAS A FALSE PASS AND I FIXED THE CHECK, NOT THE OUTPUT. It tested /Delivery receipts/i against the container text - and the empty state "no delivery receipts recorded for this task" CONTAINS that phrase, so it reported PASS while the panel was empty. It now asserts the drawer opened the specific task (via #d-crumbs), that the panel is not the empty state, and that a full 64-hex entry hash and a 60+ character signature are present. Worth stating plainly: my own green checkmark was the thing that was wrong.',
-    'THE REPLACEMENT ASSERTION THEN FAILED FOR THE OPPOSITE REASON. I first wrote the hash test with a trailing word boundary, but sibling <div>s concatenate with no separator, so the hash runs straight into "sig" and no boundary exists - a false negative against a receipt that was in fact complete. Fixed to /entry [0-9a-f]{64}(?![0-9a-f])/. Two false results in a row from one assertion is why the receipt evidence is quoted as literal text in runs[].',
-    'PERFORMANCE SPREAD, NOT A SINGLE NUMBER: 87 / 100 / 100. The 87 is the first run after the browser process starts (LCP 4.05s); two consecutive warm runs are identical at 100 (LCP 1.80s, CLS 0, TBT 0). Your rebuild measured 90, which sits inside that spread. All three are in lighthouse_runs and the cause of the outlier is named rather than dropped.',
-    'THE HEADLESS BROWSER KEPT DYING WITH "devtools did not come up". Cause: a fixed --user-data-dir, where orphaned renderer/utility processes from the previous run still hold the profile lock, so the next browser exits immediately. tools/shots.mjs additionally used --remote-debugging-port=0 and parsed "DevTools listening on ws://" out of stderr, which is empty on Windows because spawn() of msedge.exe returns a launcher that exits at once while the real browser runs detached. Both now use a pinned port plus HTTP /json/list polling and a fresh mkdtemp profile per run. Those orphans are also what depressed Lighthouse, so this fixes a measurement bug, not merely a crash.',
-    'THE DATASET SHIPS AS A REGENERATOR, NOT AS BYTES: 364 tasks with full descriptions exceeds the 50,000-character delivery cap. `node tools/fetch-snapshot.mjs` rebuilds it from the public API, and its output is in runs[].',
-    'Lighthouse could not launch a browser on its own here (chrome-launcher cannot read the dynamic debugging port on Windows). It was run against an Edge instance I started myself with --remote-debugging-port=9333, passed to lighthouse via --port=9333. Same preset, same throttling; the command is recorded verbatim in lighthouse_method.',
-    'POPULATION CHANGED UNDER ME: the census is 364 tasks this pass, up from 270, because status=cancelled is now walked (94 tasks) and the board has simply grown. Your "270 tasks and 71 / 39.20 USDC" still reconciles exactly - 71 settled and 39.20 USDC are unchanged and settled_crosscheck.agrees_with_api is true.',
+    'R2 WAS A FALSE PASS AND I FIXED THE CHECK, NOT THE OUTPUT: it matched /Delivery receipts/i against the container text, and the empty state "no delivery receipts recorded for this task" CONTAINS that phrase. It now asserts the specific task, the non-empty state, and a full 64-hex hash + 60+ char signature.',
+    'The replacement then failed the other way: a trailing word boundary never matches because sibling <div>s concatenate, so the hash runs into "sig". A false negative against a complete receipt. Both false results are why the receipt text is quoted literally in runs[].',
+    'PERFORMANCE SPREAD 87 / 100 / 100, not one number: the 87 is the first run after the browser starts (LCP 4.05s); two warm runs are identical (LCP 1.80s, CLS 0, TBT 0). Your 90 sits inside it. All three are in lighthouse_runs.',
+    'Population moved under me: 364 tasks, not 270, because status=cancelled is now walked (94 tasks) and the board grew. 71 settled and 39.20 USDC are unchanged and settled_crosscheck.agrees_with_api is true.',
   ],
 
   lighthouse: lhScore,
@@ -258,12 +273,12 @@ const base = {
   lighthouse_method: lhMethod,
   lighthouse_runs: lhRuns,
   verification: {
-    static_checks: '37/37 pass -- node tools/verify-fixes.mjs (was 26; the 11 new assertions cover items 2,3,4,5,6 and both nits)',
-    runtime_checks: '7/7 pass -- node tools/runtime-verify.mjs (real Edge over CDP)',
-    axe: '0 violations across board, payments, agents and open drawer in BOTH themes (8 runs) -- node tools/axe-run.mjs',
+    static_checks: '37/37 -- node tools/verify-fixes.mjs (was 26)',
+    runtime_checks: '7/7 -- node tools/runtime-verify.mjs (real Edge over CDP)',
+    axe: '0 violations, board/payments/agents/drawer x both themes (8 runs) -- node tools/axe-run.mjs',
     xss_suite: '12 fixtures PASS, exit 0 -- node tools/xss-test.mjs',
-    contrast_pairs: '18 pairs per theme, 36 total, both themes, tint resolved -- node tools/contrast.mjs (was 13 per theme, and it skipped the tinted pills)',
-    keyboard_walkthrough: 'tools/shots.mjs: inertRemainingAfterClose=[], secondCardOpens=true, secondCardFocusInsideDrawer=true, secondCloseRestoresFocus=true',
+    contrast_pairs: '36 (18 per theme), tint resolved -- node tools/contrast.mjs (was 13 per theme, skipping the tinted pills)',
+    keyboard_walkthrough: 'inertRemainingAfterClose=[], secondCardOpens=true, secondCloseRestoresFocus=true',
     settled_crosscheck: snap.settled_crosscheck,
     agents_census: snap.agents_census,
     snapshot_stats: snap.stats,
@@ -314,9 +329,13 @@ for (let i = 0; i < 24; i++) {
         + 'named here rather than silently dropped. Every included file was re-parsed with '
         + '`node --check` after stripping: code is complete, only comments were removed.',
       omitted_files: r.skip,
-      xss_suite_note: 'tools/xss-test.mjs (13.4k stripped) did not fit alongside the app source. Its full '
-        + 'literal output for this exact build is in runs[] -- 12 fixtures, 0 injected elements, '
-        + '0 off-origin requests, PASS, exit 0 -- and the three Windows bugs fixed in it are in honest_notes.',
+      xss_suite_note: 'tools/xss-test.mjs (14.3k stripped) did not fit alongside the two '
+        + 'artifacts review item 1 named first. Its complete source is in source_repo, and '
+        + 'its FULL literal output for this exact build is in runs[] -- 12 fixtures, 0 injected '
+        + 'elements, 0 off-origin requests, PASS, exit 0. The suite has three Windows bugs '
+        + 'fixed in it (browser launch from stderr, orphaned process teardown, an exit listener '
+        + 'that exited 1 on a passing run); see README.md.',
+      how_to_reproduce: 'git clone https://github.com/foxxx009/basedagents-board-ui && cd basedagents-board-ui && node tools/serve.mjs 8099 (serve the built bundle) | node tools/fetch-snapshot.mjs (regenerate dist/*.json from the public API) | node tools/contrast.mjs && node tools/axe-run.mjs && node tools/xss-test.mjs && node tools/verify-fixes.mjs',
     },
   };
   const size = JSON.stringify(cand).length;
