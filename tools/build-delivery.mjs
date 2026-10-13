@@ -170,11 +170,10 @@ const runs = [
   {
     /* REVIEW BLOCKING 2: search must not fall through to "everything" while the
      * detail chunks are still in flight. The verifier holds the chunk fetches over
-     * CDP and measures both halves of the behaviour. */
+     * CDP and measures both halves of the behaviour. Literal stdout, like every
+     * other run here; the report JSON goes to the scratch dir. */
     command: 'node tools/search-fallback-verify.mjs   [literal stdout: detail chunks held over CDP, then released]',
-    output: has('runs/search-fallback-verify.json')
-      ? read('runs/search-fallback-verify.json')
-      : run(['tools/search-fallback-verify.mjs']).trim(),
+    output: run(['tools/search-fallback-verify.mjs', '--out', resolve(scratch, 'search-fallback-verify.json')]).trim(),
   },
   {
     command: 'node tools/runtime-verify.mjs   [real Edge over CDP; needs tools/serve.mjs on :8099]',
@@ -318,7 +317,7 @@ const base = {
   lighthouse_method: lhMethod,
   lighthouse_runs: lhRuns,
   verification: {
-    static_checks: '37/37 -- node tools/verify-fixes.mjs (was 26)',
+    static_checks: '44/44 -- node tools/verify-fixes.mjs (was 26; the blocking-1/2/3 checks are p1-p3, 9e and b3a-b3d)',
     runtime_checks: '7/7 -- node tools/runtime-verify.mjs (real Edge over CDP)',
     axe: '0 violations, board/payments/agents/drawer x both themes (8 runs) -- literal stdout in runs[]',
     xss_suite: '12 fixtures PASS, exit 0 -- node tools/xss-test.mjs',
@@ -374,8 +373,15 @@ for (let i = 0; i < 24; i++) {
       reason: 'The API caps one delivery at 50,000 characters. Comment-stripped the sources still total '
         + filesTotal + ', so files were added in this review\'s priority order and the remainder is '
         + 'named here rather than silently dropped. Every included file was re-parsed with '
-        + '`node --check` after stripping: code is complete, only comments were removed.',
+        + '`node --check` after stripping: code is complete, only comments were removed. '
+        + 'Everything omitted is at pinned_commit in source_repo, which the review\'s item 1 '
+        + 'explicitly permits ("minify or link a public repo/tarball").',
       omitted_files: r.skip,
+      blocking2_note: 'dist/app.js is omitted by the cap, not hidden: the blocking-2 fix is the two lines '
+        + 'quoted verbatim in README.md ("if (hay.includes(q)) return true;" followed by '
+        + '"return ft ? ft.has(t.id) : false;"), the file is at pinned_commit, and the behaviour is '
+        + 'measured in runs[] by tools/search-fallback-verify.mjs (0 rows for a nonsense query while '
+        + 'the chunks are held, 91 metadata rows, then 0 / 18 / 364 after release).',
       xss_suite_note: 'tools/xss-test.mjs (14.3k stripped) did not fit alongside the two '
         + 'artifacts review item 1 named first. Its complete source is in source_repo, and '
         + 'its FULL literal output for this exact build is in runs[] -- 12 fixtures, 0 injected '

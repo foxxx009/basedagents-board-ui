@@ -17,7 +17,7 @@
  */
 import { writeFileSync, readFileSync, existsSync, mkdirSync, mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { resolve, dirname } from 'node:path';
+import { resolve, dirname, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -186,7 +186,7 @@ const outArg = process.argv.indexOf('--out');
 const reportPath = outArg > -1 ? resolve(process.argv[outArg + 1]) : resolve(ROOT, 'runs', 'axe-report.json');
 writeFileSync(reportPath, JSON.stringify(out, null, 2));
 console.log(`\n${out.verdict}`);
-console.log(`wrote ${reportPath}`);
+console.log(`wrote ${basename(reportPath)}`);
 
 ws.close(); proc.kill(); server.close();
 process.exit(totalViolations === 0 ? 0 : 1);

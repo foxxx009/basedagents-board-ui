@@ -145,7 +145,11 @@ check('cleared query restores the full board', c5 === 364, `rows=${c5}`);
 
 out.heldChunks = held.length;
 
-writeFileSync(join(RUNS, 'search-fallback-verify.json'), JSON.stringify(out, null, 1));
+/* --out lets the delivery builder capture this run's report without touching the
+ * committed copy, so the tree the delivery pins stays byte-identical. */
+const outArg = process.argv.indexOf('--out');
+writeFileSync(outArg > -1 ? resolve(process.argv[outArg + 1]) : join(RUNS, 'search-fallback-verify.json'),
+  JSON.stringify(out, null, 1));
 const failed = out.steps.filter((s) => !s.pass);
 console.log(failed.length === 0 ? 'ALL PASS' : failed.length + ' FAILED');
 proc.kill();
