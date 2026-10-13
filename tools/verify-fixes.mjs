@@ -281,6 +281,9 @@ if (process.argv.includes('--json')) {
   for (const r of results) console.log(`${r.pass ? 'PASS' : 'FAIL'} [${r.id}] ${r.claim} — ${r.detail}`);
   console.log(`\n${results.length - failed.length}/${results.length} checks pass`);
 }
-writeFileSync(resolve(ROOT, 'runs', 'verify-fixes.json'),
+/* --out lets the delivery builder capture this run's report without touching the
+ * committed copy, so the tree the delivery pins stays byte-identical. */
+const outArg = process.argv.indexOf('--out');
+writeFileSync(outArg > -1 ? resolve(process.argv[outArg + 1]) : resolve(ROOT, 'runs', 'verify-fixes.json'),
   JSON.stringify({ generated_at: new Date().toISOString(), total: results.length, failed: failed.length, results }, null, 2));
 process.exit(failed.length === 0 ? 0 : 1);

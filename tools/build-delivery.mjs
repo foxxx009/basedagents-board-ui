@@ -14,7 +14,7 @@
  *
  * Usage: node tools/build-delivery.mjs [--out runs/delivery-revision.json]
  */
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, mkdtempSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
@@ -117,6 +117,11 @@ function literal (text, keepRe) {
   return kept.join('\n') + `\n[${kept.length}/${lines.length} lines verbatim; omitted lines are PASS details restated in what_changed]`;
 }
 
+/* The tools that write their own report would dirty the tree mid-build, which would
+ * make the pinned commit wrong by the time the build finished. They take --out, so
+ * their report lands in a scratch dir and the committed copy stays untouched. */
+const scratch = mkdtempSync(resolve(tmpdir(), 'delivery-scratch-'));
+
 /* runtime-verify.json repeats the same claim sentence in all 7 records and stores a full
  * receipt hash + signature per check. Keep every measured number (those ARE the answer to
  * review items 2 and 5) and drop only the duplicated prose. */
@@ -140,7 +145,7 @@ const runs = [
     /* FULL output, not the elided digest. The reviewer counted rows and found 26 where
      * the tool printed 27, so a summary was hiding exactly the row in question. */
     command: 'node tools/verify-fixes.mjs   [FULL output, every assertion line]',
-    output: run(['tools/verify-fixes.mjs']).trim(),
+    output: run(['tools/verify-fixes.mjs', '--out', resolve(scratch, 'verify-fixes.json')]).trim(),
   },
   {
     command: 'node tools/contrast.mjs   [FULL output: 18 pairs per theme = 36 rows, both themes]',
@@ -160,7 +165,7 @@ const runs = [
      * line format from axe-report.json instead of quoting what the command prints.
      * This is the literal stdout of the run captured at build time. */
     command: 'node tools/axe-run.mjs   [literal stdout: axe-core over board, payments, agents, open drawer — both themes]',
-    output: run(['tools/axe-run.mjs']).trim(),
+    output: run(['tools/axe-run.mjs', '--out', resolve(scratch, 'axe-report.json')]).trim(),
   },
   {
     /* REVIEW BLOCKING 2: search must not fall through to "everything" while the

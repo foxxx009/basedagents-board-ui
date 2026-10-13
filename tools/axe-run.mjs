@@ -180,9 +180,13 @@ out.total_violations = totalViolations;
 out.verdict = totalViolations === 0
   ? '0 axe violations across board, payments, agents and open drawer in both themes'
   : `${totalViolations} violation(s)`;
-writeFileSync(resolve(ROOT, 'runs', 'axe-report.json'), JSON.stringify(out, null, 2));
+/* --out lets the delivery builder capture this run's report without touching the
+ * committed copy, so the tree the delivery pins stays byte-identical. */
+const outArg = process.argv.indexOf('--out');
+const reportPath = outArg > -1 ? resolve(process.argv[outArg + 1]) : resolve(ROOT, 'runs', 'axe-report.json');
+writeFileSync(reportPath, JSON.stringify(out, null, 2));
 console.log(`\n${out.verdict}`);
-console.log('wrote runs/axe-report.json');
+console.log(`wrote ${reportPath}`);
 
 ws.close(); proc.kill(); server.close();
 process.exit(totalViolations === 0 ? 0 : 1);
