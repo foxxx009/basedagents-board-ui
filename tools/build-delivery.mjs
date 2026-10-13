@@ -53,20 +53,22 @@ function stripComments (src) {
  * first, what it merely implied last. */
 /* Order is the review's own priority. Item 1 names three artifacts explicitly --
    dist/styles.css, tools/fetch-snapshot.mjs and tools/xss-test.mjs -- so those come
-   first, ahead of even the entry point and the app source. Anything that does not fit
-   the 50,000-character cap is named in not_included and available in full at
-   source_repo, which review item 1 explicitly permits ("minify or link a public
-   repo/tarball"). */
+   first, ahead of even the entry point and the app source. tools/serve.mjs sits
+   between them: it is 1.3k and it is where two of this round's nits live (gzip, and
+   the GET // crash), so it earns its place ahead of the 11k regenerator. Anything
+   that does not fit the 50,000-character cap is named in not_included and available
+   in full at source_repo, which review item 1 explicitly permits ("minify or link a
+   public repo/tarball"). */
 const CODE = [
   'dist/styles.css',         // review item 1 (named) + item 4: contrast.mjs parses THIS file
+  'tools/serve.mjs',         // how the bundle is served for every browser measurement; gzip + GET // nits
   'tools/fetch-snapshot.mjs',// review item 1 (named): regenerates the dataset
   'tools/xss-test.mjs',      // review item 1 (named)
   'dist/index.html',         // entry point: without it the bundle cannot be served
-  'tools/serve.mjs',         // how the bundle is served for every browser measurement
   'fixtures/hostile.js',     // the hostile payloads xss-test.mjs injects
   'dist/app.js',             // review items 2,3,5,8,9 all live here
   'tools/contrast.mjs',      // review item 4: re-derives the 36 pairs
-  'tools/verify-fixes.mjs',  // the 37 static/data assertions
+  'tools/verify-fixes.mjs',  // the 44 static/data assertions
   'tools/runtime-verify.mjs',// the 7 browser checks
 ];
 const stripped = CODE.map((f) => ({ path: f, src: stripComments(read(f)) }));
@@ -409,7 +411,7 @@ for (let i = 0; i < 24; i++) {
         + 'elements, 0 off-origin requests, PASS, exit 0. The suite has three Windows bugs '
         + 'fixed in it (browser launch from stderr, orphaned process teardown, an exit listener '
         + 'that exited 1 on a passing run); see README.md.',
-      how_to_reproduce: 'git clone https://github.com/foxxx009/basedagents-board-ui && cd basedagents-board-ui && git checkout ' + (pinnedCommit || '<pinned_commit>') + ' && node tools/serve.mjs 8099 (serve the built bundle) | node tools/fetch-snapshot.mjs (regenerate dist/*.json from the public API) | node tools/contrast.mjs && node tools/axe-run.mjs && node tools/xss-test.mjs && node tools/verify-fixes.mjs && node tools/search-fallback-verify.mjs && node tools/runtime-verify.mjs | for n in 1 2 3: node tools/lh_fresh.cjs http://127.0.0.1:8099/ runs/lh_rev4_$n.report.json',
+      how_to_reproduce: 'git clone https://github.com/foxxx009/basedagents-board-ui && cd basedagents-board-ui && git checkout ' + (pinnedCommit || '<pinned_commit>') + ' && node tools/serve.mjs 8099 | node tools/fetch-snapshot.mjs | node tools/contrast.mjs && node tools/axe-run.mjs && node tools/xss-test.mjs && node tools/verify-fixes.mjs && node tools/search-fallback-verify.mjs && node tools/runtime-verify.mjs | node tools/lh_fresh.cjs http://127.0.0.1:8099/ runs/lh_rev4_<n>.report.json (x3)',
     },
   };
   const size = JSON.stringify(cand).length;
