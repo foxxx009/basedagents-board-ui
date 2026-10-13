@@ -17,7 +17,7 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync, mkdtempSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawn } from 'node:child_process';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const CAP = 50000;
@@ -140,6 +140,22 @@ function runtimeDigest () {
  * at all -- and it paraphrased rather than quoted. Everything below is the literal stdout
  * of the command, captured at build time. Where a line is dropped the label says which
  * lines and why, instead of the elision passing unnoticed. */
+/* The browser-driven runs (search-fallback-verify, runtime-verify) expect the built
+ * bundle on :8099, exactly as README documents. The builder starts its own server so
+ * a delivery never silently captures a stale or absent one, and kills it on every
+ * exit path. */
+const server = spawn(process.execPath, ['tools/serve.mjs', '8099'], { cwd: ROOT, stdio: 'ignore' });
+let serverUp = false;
+for (let i = 0; i < 40; i++) {
+  await new Promise((r) => setTimeout(r, 250));
+  try { if ((await fetch('http://127.0.0.1:8099/')).ok) { serverUp = true; break; } } catch {}
+}
+if (!serverUp) {
+  console.error('serve.mjs did not come up on :8099; the browser runs would capture a failure, not evidence');
+  server.kill();
+  process.exit(1);
+}
+
 const runs = [
   {
     /* FULL output, not the elided digest. The reviewer counted rows and found 26 where
@@ -404,6 +420,7 @@ console.log('reserve solved at ' + chosen.reserve + ' chars; final size ' + chos
 mkdirSync(dirname(OUT), { recursive: true });
 const json = JSON.stringify(delivery);
 writeFileSync(OUT, json);
+server.kill();
 console.log('WROTE ' + OUT);
 console.log('size ' + json.length + ' chars (cap ' + CAP + ') -- ' + (json.length <= CAP ? 'OK' : 'OVER CAP'));
 for (const k of Object.keys(files)) console.log('  ' + k.padEnd(30) + files[k].length);
