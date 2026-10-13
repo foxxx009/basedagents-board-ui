@@ -93,6 +93,7 @@ const html = readFileSync(resolve(ROOT, 'dist', 'index.html'), 'utf8');
   try {
     out = execFileSync(process.execPath, [resolve(ROOT, 'tools', 'contrast.mjs')], { encoding: 'utf8' });
   } catch (e) { out = (e.stdout || '') + (e.stderr || ''); code = e.status ?? 1; }
+  const contrastSrc = readFileSync(resolve(ROOT, 'tools', 'contrast.mjs'), 'utf8');
   const m = out.match(/ALL PAIRS PASS/);
   rec('4a', 'all palette pairs pass WCAG AA in BOTH themes', code === 0 && !!m,
     m ? `${out.match(/PASS/g).length} pairs pass` : out.slice(-400));
@@ -108,8 +109,9 @@ const html = readFileSync(resolve(ROOT, 'dist', 'index.html'), 'utf8');
       && !/color:#04211d/.test(css),
     `dark #04211d on #5eead4 = 11.44; light #ffffff on #0a6e66 = 6.11; ${(css.match(/color:var\(--on-acc\)/g) || []).length} usages`);
   rec('4d', 'the tinted bounty/settled pills are measured, not skipped',
-    app.includes('color-mix') || true,
-    'contrast.mjs blends color-mix(in srgb, ok 16%|20%, transparent) over card-2: 5.69 and 5.33 light');
+    /tint:ok:16:card-2/.test(contrastSrc) && /tint:ok:20:card-2/.test(contrastSrc)
+      && /5\.[0-9]+/.test(out) && (out.match(/PASS/g) || []).length >= 30,
+    `contrast.mjs blends color-mix(in srgb, ok 16%|20%, transparent) over card-2: 5.69 and 5.33 light; ${(out.match(/PASS/g) || []).length} PASS lines`);
   rec('4e', 'contrast.mjs covers more pairs than the 27 it used to claim',
     (out.match(/PASS/g) || []).length >= 30,
     `${(out.match(/PASS/g) || []).length} PASS lines across both themes (was 27)`);
@@ -173,12 +175,17 @@ const html = readFileSync(resolve(ROOT, 'dist', 'index.html'), 'utf8');
     'full-text resolved from details-*.json on first query');
   /* REVIEW ITEM 3: the full-text hit set REPLACED the metadata match, so rows whose
      match lives only in the metadata vanished once the chunks landed ("api-integration"
-     32 -> 0). The two haystacks must be OR'd, not substituted. */
-  rec('9e', 'full-text hits OR with the metadata match instead of replacing it',
-    /if \(ft && ft\.has\(t\.id\)\) return true;/.test(app)
-      && /if \(hay\.includes\(q\)\) return true;/.test(app)
-      && !/if \(ft\) \{\s*if \(!ft\.has\(t\.id\)\) return false;\s*return true;\s*\}/.test(app),
-    'a row matching either haystack is kept; only a loaded-chunk miss falls through');
+     32 -> 0). The two haystacks must be OR'd, not substituted.
+     REVIEW BLOCKING 2: and the fallthrough itself was `return true`, so while the
+     chunks were in flight ANY query listed all 364 rows. The metadata hit keeps the
+     row; a miss falls through to the chunk hit set -- and to false, not to "everything",
+     when that set is still loading. This assertion must fail if the fallthrough ever
+     becomes a bare true again, which is exactly the bug it was written after. */
+  rec('9e', 'full-text hits OR with the metadata match; the fallthrough is the chunk hit, never "everything"',
+    /if \(hay\.includes\(q\)\) return true;/.test(app)
+      && /return ft \? ft\.has\(t\.id\) : false;/.test(app)
+      && !/return ft \? ft\.has\(t\.id\) : true;/.test(app),
+    'metadata hit keeps the row; a miss falls through to the chunk hit set, and to false when it is still loading');
 }
 
 /* ── 6b. Agent census must equal the API's own total (review item 6). ───────── */
@@ -198,6 +205,54 @@ const html = readFileSync(resolve(ROOT, 'dist', 'index.html'), 'utf8');
   rec('n4', 'cancelled tasks are in the census instead of being dropped silently',
     'cancelled' in bs,
     `by_status=${JSON.stringify(bs)}`);
+}
+
+/* ── BLOCKING 1: first paint must not await receipts, and the payloads must be
+      compressed on the wire. These are the two structural fixes behind the three
+      fresh-profile 100/100/100/100 runs; each is asserted against the shipped source
+      so a regression fails here rather than in a Lighthouse run nobody repeats. ──── */
+{
+  const serve = readFileSync(resolve(ROOT, 'tools', 'serve.mjs'), 'utf8');
+  rec('p1', 'receipts no longer block first paint (they did: 130 KB awaited before render)',
+    /let receiptsPromise = null;/.test(app)
+      && /function loadReceipts\(\) \{\s*if \(!receiptsPromise\)/.test(app)
+      && /render\(\);\s*\n\s*document\.body\.dataset\.ready = '1';\s*\n\s*loadReceipts\(\);/.test(app)
+      && !/state\.data = await loadReceipts\(\)/.test(app),
+    'the boot path renders first and starts the receipts fetch un-awaited afterwards; only openDrawer awaits it, and only on user action');
+  rec('p2', 'the dominant payload is gzipped on the wire',
+    /createGzip/.test(serve) && /content-encoding': 'gzip'/.test(serve) && /1400/.test(serve),
+    'serve.mjs gzips any response over 1400 B when the client accepts it (411 KB -> 66 KB)');
+  rec('p3', 'the three fresh-profile Lighthouse reports are committed and all four categories are >= 95 in each',
+    ['runs/lh_rev4_1.report.json', 'runs/lh_rev4_2.report.json', 'runs/lh_rev4_3.report.json']
+      .every((f) => {
+        try {
+          const r = JSON.parse(readFileSync(resolve(ROOT, f), 'utf8'));
+          return ['performance', 'accessibility', 'best-practices', 'seo']
+            .every((k) => r.categories[k].score >= 0.95);
+        } catch { return false; }
+      }),
+    'runs/lh_rev4_1/2/3.report.json: 100/100/100/100 each (LCP 1.7 s, CLS 0, TBT 0 ms)');
+}
+
+/* ── BLOCKING 3: the claims about the current board are checkable. The upstream
+      source is committed verbatim in reference/ at a pinned SHA, so every assertion
+      in design_notes can be re-read rather than trusted. ───────────────────────── */
+{
+  const mp = readFileSync(resolve(ROOT, 'reference', 'mp.tsx'), 'utf8');
+  const td = readFileSync(resolve(ROOT, 'reference', 'td.tsx'), 'utf8');
+  const sha = readFileSync(resolve(ROOT, 'reference', 'ba_main_sha.txt'), 'utf8').trim();
+  rec('b3a', 'upstream source is committed at a pinned 40-hex commit',
+    /^[0-9a-f]{40}$/.test(sha), `reference/ba_main_sha.txt = ${sha}`);
+  rec('b3b', 'the board exposes no sort control at all (the gain that is mine alone)',
+    !/sort/i.test(mp), 'reference/mp.tsx contains no sort state, no sort param, no sort UI');
+  rec('b3c', 'main renders receipts through truncateHash (entry hash default 16, signature 32)',
+    /function truncateHash\(hash: string, len = 16\)/.test(td)
+      && /truncateHash\(receipt\.chain_entry_hash\)/.test(td)
+      && /truncateHash\(receipt\.signature, 32\)/.test(td),
+    'td.tsx:112 definition, :836 entry hash, :845 signature - clipped, not verifiable');
+  rec('b3d', 'main already ships the settled proof and the payout-history view',
+    /PayoutProof/.test(mp) && /paidTotal/.test(mp) && /Payout history/.test(mp),
+    'PayoutProof at mp.tsx:301, "Payout history" view at :380 - conceded in design_notes, not claimed as new');
 }
 
 /* ── nits ─────────────────────────────────────────────────────────────────── */

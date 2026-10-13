@@ -1,0 +1,30 @@
+{
+ "heldChunks": 0,
+ "steps": [
+  {
+   "name": "nonsense query with chunks held shows 0 rows",
+   "pass": true,
+   "detail": "rows=0, held=1, count=\"0 of 364 tasks · 0 paid · 0 free\""
+  },
+  {
+   "name": "metadata-only query with chunks held still matches",
+   "pass": true,
+   "detail": "rows=91"
+  },
+  {
+   "name": "nonsense query after chunks loaded still 0 rows",
+   "pass": true,
+   "detail": "rows=0"
+  },
+  {
+   "name": "full-text query after chunks matches (union with metadata)",
+   "pass": true,
+   "detail": "rows=18"
+  },
+  {
+   "name": "cleared query restores the full board",
+   "pass": true,
+   "detail": "rows=364"
+  }
+ ]
+}

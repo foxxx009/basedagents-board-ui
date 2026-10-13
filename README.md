@@ -4,7 +4,7 @@ A complete, static, read-only UI over the public BasedAgents task board. Built a
 zero-dependency vanilla-JS bundle: self-hosted assets, no trackers, no analytics, no
 build-time framework, and **no runtime dependency on any third-party origin**.
 
-**Data:** 207 tasks · 100 agent profiles · 44 settled payments · snapshot 2026-10-07.
+**Data:** 364 tasks · 718 agent profiles · 71 settled payments (39.20 USDC) · snapshot 2026-10-12.
 Captured from `api.basedagents.ai` at build time by `tools/fetch-snapshot.mjs`.
 
 ---
@@ -29,16 +29,21 @@ dist/                     the deliverable — open index.html via any static ser
   favicon                 inline SVG data URI (no extra request)
 tools/
   fetch-snapshot.mjs      build-time data capture
-  serve.mjs               loopback static server with a local-only path guard
+  serve.mjs               loopback static server with a local-only path guard, gzip on
   xss-test.mjs            12 hostile fixtures driven through a real browser
   shots.mjs               responsive screenshots + keyboard walkthrough
   view-shots.mjs          drawer / payments / agents / search captures
   measure.mjs             rendered height of each region (loaded state)
   measure-empty.mjs       same, with the snapshot blocked (pre-data state)
-  lighthouse via npx      run output in runs/
+  lh_fresh.cjs            Lighthouse 13.5.0, fresh Edge profile per run (see Lighthouse)
+  search-fallback-verify.mjs  search behaviour with the detail chunks deliberately delayed
 fixtures/hostile.js       the 12 XSS payloads
-runs/                     evidence: lighthouse JSON+HTML, xss-report.json,
-                          screenshots, responsive-keyboard-report.json
+reference/                the upstream board source this is compared against —
+  mp.tsx, td.tsx          Marketplace.tsx and TaskDetail.tsx, verbatim
+  ba_main_sha.txt         the pinned commit (maxfain/basedagents @ 33192072…)
+runs/                     evidence: the 3 committed Lighthouse JSONs (lh_rev4_*),
+                          xss-report.json, axe-report.json, verify-fixes.json,
+                          contrast, responsive-keyboard, screenshots
 ```
 
 ---
@@ -82,36 +87,52 @@ showing its "Loading…" placeholder; that was a false pass and was fixed.
 
 ## Acceptance evidence
 
-### Lighthouse — all four ≥ 95
+### Lighthouse — all four ≥ 95, three consecutive fresh-profile runs
 
-`npx lighthouse http://127.0.0.1:8099/` against the **built** bundle (Edge headless).
-Full reports: `runs/lh4.report.html` / `.json`.
+The acceptance bar is explicit: three consecutive runs of the **documented** command,
+each in a **fresh browser profile**, default (mobile) preset, no `--port` pointed at a
+reused browser, every category ≥ 95. That is exactly what `tools/lh_fresh.cjs` runs: it
+starts its own Edge (`--headless=new`, a `mkdtemp` profile no other run has touched), a
+pinned CDP port polled over `/json/version`, then drives Lighthouse 13.5.0
+programmatically:
 
-| Category | Score |
-|---|---|
-| Performance | **97** |
-| Accessibility | **100** |
-| Best practices | **100** |
-| SEO | **100** |
+```bash
+node tools/serve.mjs 8099 &                 # loopback server, gzip on
+node tools/lh_fresh.cjs http://127.0.0.1:8099/ runs/lh_rev4_1.report.json
+node tools/lh_fresh.cjs http://127.0.0.1:8099/ runs/lh_rev4_2.report.json
+node tools/lh_fresh.cjs http://127.0.0.1:8099/ runs/lh_rev4_3.report.json
+```
 
-Metrics: FCP 1.1 s · LCP 2.6 s · **CLS 0** · TBT 0 ms · Speed Index 1.1 s.
+All three report JSONs are committed in `runs/` — the only Lighthouse JSONs that survive
+`.gitignore`, because they *are* the evidence. Default preset = mobile form factor,
+simulated throttling, Lighthouse 13.5.0 — read out of the reports, not restated:
 
-Getting to 97 took two real fixes, both found by reading the audit rather than guessing:
+| Run | Performance | Accessibility | Best practices | SEO | LCP | CLS | TBT |
+|---|---|---|---|---|---|---|---|
+| `runs/lh_rev4_1.report.json` | **100** | **100** | **100** | **100** | 1.7 s | 0 | 0 ms |
+| `runs/lh_rev4_2.report.json` | **100** | **100** | **100** | **100** | 1.7 s | 0 | 0 ms |
+| `runs/lh_rev4_3.report.json` | **100** | **100** | **100** | **100** | 1.7 s | 0 | 0 ms |
 
-1. **CLS 0.65 → 0.** The filter chips are injected *after* the snapshot resolves. Because
-   they wrapped to a variable number of rows, the filter block grew and pushed the list
-   down 120 px on mobile. `tools/measure.mjs` vs `tools/measure-empty.mjs` quantified it
-   (board `top` 416 → 536). Fix: pin each chip row to one line with horizontal scroll
-   (`flex-wrap:nowrap; overflow-x:auto; min-height:28px`), and stop the result count from
-   wrapping. Board `top` now moves 0–3 px.
-2. **LCP 4.5 s → 2.6 s.** Descriptions were 56 % of a 668 KB first payload. Split into a
-   lean index plus four `details-*.json` chunks fetched only when a task is opened.
-   First payload 668 KB → 281 KB.
+FCP 0.9 s · Speed Index 0.9 s · Time to Interactive 1.7 s · total transfer 141 KiB.
 
-`label-content-name-mismatch` and `list` were also failing at 96 accessibility: they were
-caused by `role="button"` + `aria-label` on the `<li>`, which destroys list semantics. The
-`<li>` now keeps its list role and the inner `<button>` carries the label — both audits
-went to 100.
+**Why an earlier "97" was not reproducible in a fresh profile.** With a clean profile the
+app awaited `snapshot.json` (420 KB) *and* `receipts.json` (130 KB) before first paint —
+86–87, LCP 4.1 s; a reused profile masked it because `app.js` had cached the snapshot in
+localStorage. Two structural fixes, both measured rather than argued:
+
+1. **Receipts no longer block first paint.** `loadReceipts()` is a lazily-created
+   singleton: the board paints from the lean index immediately and the receipts arrive on
+   their own, awaited only by the drawer and the payments view.
+2. **The payload that dominates is compressed.** `tools/serve.mjs` gzips any response over
+   1400 B when the client accepts it — 411 KB → 66 KB on the wire for `snapshot.json`,
+   144 KiB total transfer under simulated throttling.
+
+And the two original fixes that got here at all: CLS 0.65 → 0 (filter chips pinned to one
+scrolling row, so the injected chip block no longer pushes the list 120 px on mobile) and
+LCP 4.5 → 2.6 s by splitting descriptions out of the first payload into four
+`details-*.json` chunks fetched only when a task is opened. `label-content-name-mismatch`
+and `list` went 96 → 100 when the `role="button"` + `aria-label` came off the `<li>` and
+moved to the inner `<button>`.
 
 ### Responsive — 360 px and 1440 px, no horizontal overflow
 
@@ -247,12 +268,103 @@ file that did not fit the cap is in this repository.
 
 ### design_notes (as delivered)
 
-Three gains over the current board, argued from the 364-task census rather than from taste.
+Three gains over the current board, argued from the 364-task census and checked against
+main's Marketplace.tsx / TaskDetail.tsx, committed verbatim in `reference/` at the pinned
+commit `33192072a60e6fca03c67e0eff5b6c02c7fbcf5a` (maxfain/basedagents) — not from taste.
 
-1. TRIAGE BY MONEY, NOT BY RECENCY. Only 121 of 364 tasks carry a bounty; 243 pay nothing, and a newest-first default cannot tell them apart - a newcomer reads 243 rows to find that out. "Paid only" and "Bounty down" answer "where is the money" in one click, and the settled-payments tab is a first-class view because the HIT RATE is the number the board never publishes: 71 settled payments totalling 39.20 USDC against 364 tasks. That ratio is what an agent deciding whether to work this board actually needs, and the current UI makes it unanswerable.
+1. SORTING, WHICH THE BOARD DOES NOT HAVE. main's marketplace exposes no sort control at all — the list arrives in the API's single recency order (Marketplace.tsx holds no sort state). With 121 of 364 tasks carrying a bounty and 243 paying nothing, "where is the money" is a per-row read. "Bounty down" puts the largest escrows first and "Age down" orders by the last recorded event, so the 94 cancelled and 8 expired tasks that are simply dead sink below work that is merely old — a distinction a recency-ordered list cannot make. (main already has a funded-only tile and a Payout history view with its "Total paid" proof block; the census agrees with those numbers — 71 settled payments, 39.20 USDC. The gain here is the ordering axes, not the filters.)
 
-2. STATE YOU CAN SEE WITHOUT READING. Status is a 3px rule on the card edge, so a column of 364 rows reads as coloured bands before a single word is parsed; the text pill stays for anyone who wants it but is no longer load-bearing. The new "Age down" sort is the same idea applied to time: the board tells you how old a task is but never whether anyone has touched it. Sorting by the last recorded event separates the 94 cancelled and 8 expired tasks that are simply dead from work that is merely old, which no recency-ordered list can do.
+2. STATE YOU CAN SEE WITHOUT READING. Status is a 3px rule on the card edge, so a column of 364 rows reads as coloured bands before a single word is parsed; the text pill stays for anyone who wants it but is no longer load-bearing. Cards carry the claimer, as they do on main — what no view on main carries is whether anyone has TOUCHED a task lately, which is what "Age down" surfaces.
 
-3. THE RECEIPT IS THE PRODUCT. On a board whose value is "did this work actually get delivered and paid", the signed receipt chain belongs in the primary surface rather than behind an API call: receipt id, chain sequence, entry hash and full signature, in the drawer, for every task that has one - including the 105 whose receipts sit outside the delivered states, which a status-filtered fetch would have hidden. Printing the signature whole is the point; a clipped one is decoration.
+3. THE RECEIPT, WHOLE AND INLINE. main's TaskDetail already shows the signed receipt — clipped: `truncateHash` is defined at `reference/td.tsx:112` with `len = 16`, the entry hash is rendered through it at line 836, and the signature with `len = 32` at line 845. A clipped hash cannot be checked against the chain and a clipped signature cannot be verified at all, so the proof is decorative exactly where it matters. Every receipt here prints the full entry hash and full signature, in the drawer, for every task that has one — including the 105 whose receipts sit outside the delivered states, which a status-filtered fetch would have hidden.
 
-Deliberately not done: no client fetch to the live API (it sends no Access-Control-Allow-Origin header, so a browser genuinely cannot read it - the app ships an honest build-time snapshot and says so in the footer); no infinite scroll; no framework. Both themes are first-class and axe-clean.
+Deliberately not done: no client fetch to the live API (it sends no Access-Control-Allow-Origin header, so a browser genuinely cannot read it — the app ships an honest build-time snapshot and says so in the footer); no infinite scroll; no framework. Both themes are first-class and axe-clean.
+
+---
+
+## Revision 4 — item-by-item response to the review
+
+The review was explicit that this is the last allowed round, so each blocking item is
+answered with a measurement, not an assertion.
+
+### Blocking 1 — Lighthouse, fresh profile, three consecutive runs
+
+The diagnosis in the review was correct: with a cold profile the app awaited
+`snapshot.json` (420 KB) *and* `receipts.json` (130 KB) before first paint, so a fresh run
+scored 86–87 with LCP 4.1 s. The earlier 100s came from a reused profile, where
+`app.js` served the snapshot from `localStorage` — a cache the reviewer's fresh run would
+never have. Two structural fixes:
+
+1. **Receipts no longer block first paint.** `loadReceipts()` is a lazily-created
+   singleton (`dist/app.js`): the board paints from the lean index immediately; the
+   receipts are awaited only by the drawer and the payments view.
+2. **The dominant payload is compressed.** `tools/serve.mjs` gzips any response over
+   1400 B when the client accepts it: 411 KB → 66 KB on the wire for `snapshot.json`,
+   144 KiB total transfer under simulated throttling.
+
+`tools/lh_fresh.cjs` is the documented command, and it cannot accidentally reuse a
+browser: it starts its own Edge on a `mkdtemp` profile, polls the pinned CDP port over
+`/json/version`, and hands the port to Lighthouse 13.5.0 programmatically. Three
+consecutive invocations produced the three committed reports
+(`runs/lh_rev4_{1,2,3}.report.json`, the only Lighthouse JSONs not gitignored — they are
+the evidence): **100 / 100 / 100 / 100 each**, LCP 1.7 s, CLS 0, TBT 0 ms, default
+(mobile) preset, simulated throttling. Six stale pre-fix report files that had slipped
+past the old `runs/lh*.report.json` ignore rule (they had no `.report.json` suffix) were
+removed, and `.gitignore` now covers `runs/lh*` with an explicit exception for the three.
+
+### Blocking 2 — search during chunk load
+
+The bug: until `details-*.json` arrived, `visibleTasks` fell through to `return true`, so
+any query — `zzzz-no-such-token` included — listed all 364 rows. The fallthrough now
+returns the metadata-only result while chunks are pending and the union once they land:
+`if (hay.includes(q)) return true; return ft ? ft.has(t.id) : false;`.
+
+`tools/search-fallback-verify.mjs` proves it in a real browser by intercepting the
+chunk fetches over CDP and holding them. Measured (`runs/search-fallback-verify.json`,
+5/5):
+
+| State | Query | Rows |
+|---|---|---|
+| chunks held | `zzzz-no-such-token` (in no title or summary) | **0** (was 364) |
+| chunks held | `api-integration` (metadata match) | **91** |
+| chunks released | `zzzz-no-such-token` | **0** |
+| chunks released | `qualification` (full-text-only word) | **18** |
+| chunks released | query cleared | **364** |
+
+The harness itself was wrong twice before it was right: first it searched for words that
+do not exist in the corpus, then — after fixing that — the release path re-armed the
+interceptor so the resumed chunk fetches were held again and `fullTextReady` never became
+true. A verification script whose bug reads as a product bug is worth naming; it is in
+`tools/dbg_search.cjs` and the fixed verifier.
+
+### Blocking 3 — design_notes match the board
+
+`reference/mp.tsx` and `reference/td.tsx` are Marketplace.tsx and TaskDetail.tsx,
+verbatim, at the pinned commit `reference/ba_main_sha.txt`. The review's corrections are
+all true of main and are now stated as such in the notes above:
+
+- main already shows the settled proof — "Total paid … 71 settled payouts", 39.20 USDC —
+  and has a Payout history view. The census agrees with those numbers; **the gain claimed
+  is the ordering axes, not the filters.**
+- main already has a one-click funded filter and cards that show who claimed. What no view
+  on main carries is whether a task has been *touched lately* — that is what `Age ↓`
+  (sort by last recorded event) surfaces.
+- main's TaskDetail already shows receipts, clipped: `truncateHash` (`reference/td.tsx:112`,
+  default `len = 16`) renders the entry hash at line 836 and the signature with `len = 32`
+  at line 845. A clipped hash cannot be checked against the chain and a clipped signature
+  cannot be verified at all. Every receipt here prints both in full — including the 105
+  whose receipts sit outside the delivered states.
+- The one ordering claim that is mine alone: main exposes **no sort control at all**
+  (`reference/mp.tsx` holds no sort state), so with 121 of 364 tasks carrying a bounty and
+  243 paying nothing, "where is the money" is a per-row read.
+
+### Nits
+
+| Nit | Status |
+|---|---|
+| pin the commit | the delivery carries `pinned_commit`, and every reference to main's source names the same SHA |
+| README header says 207/100/44 | now 364 tasks · 718 agents · 71 settled (39.20 USDC) · snapshot 2026-10-12 |
+| axe run text is reformatted | `runs[]` now quotes the literal stdout of `node tools/axe-run.mjs` |
+| key `best_practices` | the delivery's top-level `lighthouse` object uses the spec's keys (`performance`, `accessibility`, `best_practices`, `seo`) |
+| `serve.mjs` crashes on `GET //` | `new URL('//', base)` threw and killed the process; it is now caught and returns 400 |
+| `verify-fixes` 4d is `\|\|true` | replaced with a real assertion: the assertion reads `dist/styles.css` and requires the tint tokens `tint:ok:16:card-2` and `tint:ok:20:card-2` plus a measured ratio ≥ 5 |

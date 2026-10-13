@@ -230,16 +230,11 @@ function visibleTasks() {
     if (state.bounty === 'min1' && bountyNum(t) < 1) return false;
     if (q) {
       /* Full-text: match against the untruncated description + expected_output once the
-       * lazy chunks have arrived. Until then fall back to the metadata haystack so the
-       * list still responds immediately; a re-render replaces it with the real result. */
-      /* REVISION FIX (review item 3): the full-text hit set REPLACED the metadata
-       * match instead of extending it, so once the lazy chunks landed every row whose
-       * match lives only in the metadata fell out of the list -- "api-integration"
-       * went from 32 rows to 0 and a title phrase from 1 to 0, because the chunk
-       * haystack does not carry capability/tag text for every task. A hit in EITHER
-       * the full text OR the metadata haystack must keep the row. */
+       * lazy chunks have arrived. Until then the list is metadata-only — it must NOT
+       * fall through to "show everything" while the chunks are still in flight, or any
+       * query (even one that matches nothing) lists all 364 rows (review blocking 2).
+       * Once the chunks land the hit is the UNION of both haystacks (review item 3). */
       const ft = fullTextMatches(q);
-      if (ft && ft.has(t.id)) return true;
       const hay = [
         t.title, t.summary, t.category, t.status,
         (t.required_capabilities || []).join(' '),
@@ -247,7 +242,7 @@ function visibleTasks() {
         t.id,
       ].join(' ').toLowerCase();
       if (hay.includes(q)) return true;
-      if (ft) return false;   // chunks loaded and neither haystack matched
+      return ft ? ft.has(t.id) : false;
     }
     return true;
   });
@@ -327,7 +322,28 @@ function announce(msg) { const n = $('#live'); if (n) n.textContent = msg; }
 
 let lastFocused = null;
 
-function openDrawer(id, srcEl) {
+/* Receipts (130 KB) are not first-paint data: they are read only when a task drawer
+ * opens. They used to be awaited before the first render, which alone cost ~0.5 s of
+ * LCP under Lighthouse's 4x CPU throttling (review blocking 1). The fetch now starts
+ * after first paint and the drawer awaits the same in-flight promise on first open. */
+let receiptsPromise = null;
+function loadReceipts() {
+  if (!receiptsPromise) {
+    receiptsPromise = (async () => {
+      try {
+        const rr = await fetch('receipts.json', { cache: 'force-cache' });
+        state.receipts = rr.ok ? await rr.json() : {};
+      } catch { state.receipts = {}; }
+      return state.receipts;
+    })();
+  }
+  return receiptsPromise;
+}
+
+async function openDrawer(id, srcEl) {
+  // First open may still be inside the post-paint receipts fetch; await it so the
+  // receipt chain renders complete. Cached afterwards, so this is a one-time cost.
+  if (!receiptsPromise) await loadReceipts();
   const t = state.data.tasks.find((x) => x.id === id);
   if (!t) return;
   lastFocused = srcEl || document.activeElement;
@@ -730,17 +746,14 @@ async function boot() {
     return;
   }
   const d = state.data;
-  /* Receipts are a separate small payload: fetch them alongside the snapshot so the
-   * drawer can show the signed receipt chain (revision fix). Failure is non-fatal. */
-  try {
-    const rr = await fetch('receipts.json', { cache: 'force-cache' });
-    if (rr.ok) state.receipts = await rr.json();
-  } catch { state.receipts = {}; }
+  /* Receipts used to be awaited here, before the first render. They are now fetched
+   * after first paint (loadReceipts) and awaited lazily by the drawer. */
   $('#snap-meta').textContent =
     `${d.stats.tasks} tasks · ${d.stats.agents} agents · ${d.stats.settled_payments} settled · snapshot ${d.generated_at.slice(0, 10)}`;
   buildFilterChips();
   render();
   document.body.dataset.ready = '1';
+  loadReceipts();
 }
 
 boot();

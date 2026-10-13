@@ -137,7 +137,14 @@ legend{font:600 .7rem/1 var(--sans);letter-spacing:.09em;text-transform:uppercas
 .tasks{list-style:none;margin:0;padding:0;display:grid;gap:.6rem;align-content:start;min-height:100vh}
 .task{
   background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
-  padding:.85rem .95rem;position:relative
+  padding:.85rem .95rem;position:relative;
+  /* Off-screen cards skip layout/paint entirely: with 364 rows on the board the
+   * full-list Style & Layout pass was ~0.5 s (4x under Lighthouse CPU throttling)
+   * and dominated LCP (review blocking 1). content-visibility keeps the DOM, the
+   * accessibility tree and the keyboard order untouched — only rendering work is
+   * deferred. contain-intrinsic-size gives skipped cards a placeholder height so
+   * scroll position stays meaningful. */
+  content-visibility:auto;contain-intrinsic-size:auto 150px
 }
 .task:hover{border-color:var(--line-2);background:var(--card-2)}
 .task:focus-within{border-color:var(--acc-2)}

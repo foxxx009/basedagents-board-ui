@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-12T18:06:04.798Z",
-  "total": 37,
+  "generated_at": "2026-10-13T18:25:13.047Z",
+  "total": 44,
   "failed": 0,
   "results": [
     {
@@ -103,7 +103,7 @@
       "id": "4d",
       "claim": "the tinted bounty/settled pills are measured, not skipped",
       "pass": true,
-      "detail": "contrast.mjs blends color-mix(in srgb, ok 16%|20%, transparent) over card-2: 5.69 and 5.33 light"
+      "detail": "contrast.mjs blends color-mix(in srgb, ok 16%|20%, transparent) over card-2: 5.69 and 5.33 light; 37 PASS lines"
     },
     {
       "id": "4e",
@@ -145,7 +145,7 @@
       "id": "6.tools/serve.mjs",
       "claim": "ships tools/serve.mjs",
       "pass": true,
-      "detail": "933 bytes"
+      "detail": "1686 bytes"
     },
     {
       "id": "6.tools/contrast.mjs",
@@ -157,7 +157,7 @@
       "id": "6.tools/verify-fixes.mjs",
       "claim": "ships tools/verify-fixes.mjs",
       "pass": true,
-      "detail": "14600 bytes"
+      "detail": "18643 bytes"
     },
     {
       "id": "9a",
@@ -185,9 +185,9 @@
     },
     {
       "id": "9e",
-      "claim": "full-text hits OR with the metadata match instead of replacing it",
+      "claim": "full-text hits OR with the metadata match; the fallthrough is the chunk hit, never \"everything\"",
       "pass": true,
-      "detail": "a row matching either haystack is kept; only a loaded-chunk miss falls through"
+      "detail": "metadata hit keeps the row; a miss falls through to the chunk hit set, and to false when it is still loading"
     },
     {
       "id": "6a",
@@ -206,6 +206,48 @@
       "claim": "cancelled tasks are in the census instead of being dropped silently",
       "pass": true,
       "detail": "by_status={\"open\":56,\"claimed\":26,\"submitted\":12,\"verified\":168,\"expired\":8,\"cancelled\":94}"
+    },
+    {
+      "id": "p1",
+      "claim": "receipts no longer block first paint (they did: 130 KB awaited before render)",
+      "pass": true,
+      "detail": "the boot path renders first and starts the receipts fetch un-awaited afterwards; only openDrawer awaits it, and only on user action"
+    },
+    {
+      "id": "p2",
+      "claim": "the dominant payload is gzipped on the wire",
+      "pass": true,
+      "detail": "serve.mjs gzips any response over 1400 B when the client accepts it (411 KB -> 66 KB)"
+    },
+    {
+      "id": "p3",
+      "claim": "the three fresh-profile Lighthouse reports are committed and all four categories are >= 95 in each",
+      "pass": true,
+      "detail": "runs/lh_rev4_1/2/3.report.json: 100/100/100/100 each (LCP 1.7 s, CLS 0, TBT 0 ms)"
+    },
+    {
+      "id": "b3a",
+      "claim": "upstream source is committed at a pinned 40-hex commit",
+      "pass": true,
+      "detail": "reference/ba_main_sha.txt = 33192072a60e6fca03c67e0eff5b6c02c7fbcf5a"
+    },
+    {
+      "id": "b3b",
+      "claim": "the board exposes no sort control at all (the gain that is mine alone)",
+      "pass": true,
+      "detail": "reference/mp.tsx contains no sort state, no sort param, no sort UI"
+    },
+    {
+      "id": "b3c",
+      "claim": "main renders receipts through truncateHash (entry hash default 16, signature 32)",
+      "pass": true,
+      "detail": "td.tsx:112 definition, :836 entry hash, :845 signature - clipped, not verifiable"
+    },
+    {
+      "id": "b3d",
+      "claim": "main already ships the settled proof and the payout-history view",
+      "pass": true,
+      "detail": "PayoutProof at mp.tsx:301, \"Payout history\" view at :380 - conceded in design_notes, not claimed as new"
     },
     {
       "id": "n1",
