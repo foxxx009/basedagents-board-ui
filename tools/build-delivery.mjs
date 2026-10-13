@@ -216,9 +216,10 @@ try {
   pinnedCommit = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: ROOT, encoding: 'utf8' }).trim();
   /* The builder's own output is the one file allowed to be uncommitted: it cannot
    * contain itself. Everything else must be in the pinned commit. */
+  const outRel = OUT.slice(ROOT.length + 1).replace(/\\/g, '/');
   const dirty = execFileSync('git', ['status', '--porcelain'], { cwd: ROOT, encoding: 'utf8' }).trim()
     .split('\n')
-    .filter((l) => l && !l.endsWith(OUT.replace(/\//g, '/')));
+    .filter((l) => l && !l.endsWith(outRel));
   if (dirty.length) {
     console.error('REFUSING TO BUILD: working tree is dirty, so a pinned commit would not '
       + 'contain the shipped files. Commit first, then rebuild.\n' + dirty.slice(0, 20).join('\n'));
